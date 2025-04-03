@@ -1,38 +1,41 @@
 #!/bin/bash
 
-REPO=$1
-URL=$2
+REPO_NAME=$1
+CLONE_URL=$2
 PROJECTS_DIR="/home/ubuntu/projetos"
-DOMAIN="$REPO.luizmauro.com"
-PORT=$((10000 + $(echo $REPO | cksum | cut -d ' ' -f1) % 1000)) # porta única baseada no nome
-NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
-NGINX_LINK="/etc/nginx/sites-enabled/$DOMAIN"
+APP_PORT=3000 # Porta que seu app escuta internamente
+DOMAIN="$REPO_NAME.luizmauro.com"
+NGINX_SITES="/etc/nginx/sites-available"
+NGINX_ENABLED="/etc/nginx/sites-enabled"
 
-echo "🌱 Deployando $REPO ($DOMAIN) na porta $PORT..."
+PORT=$((10000 + $(echo $REPO_NAME | cksum | cut -d ' ' -f1) % 1000))
 
-mkdir -p $PROJECTS_DIR
-cd $PROJECTS_DIR
+echo "🌱 Deployando $REPO_NAME ($DOMAIN) na porta $PORT..."
 
-# Clona ou atualiza
-if [ -d "$REPO" ]; then
-  cd $REPO && git pull
+mkdir -p "$PROJECTS_DIR"
+cd "$PROJECTS_DIR"
+
+# Clona ou atualiza o projeto
+if [ -d "$REPO_NAME" ]; then
+  echo "📥 Atualizando repositório..."
+  cd "$REPO_NAME" && git pull
 else
-  git clone $URL && cd $REPO
+  echo "📥 Clonando repositório..."
+  git clone "$CLONE_URL"
+  cd "$REPO_NAME"
 fi
 
-# Docker up
-if [ -f "docker-compose.yml" ]; then
-  docker-compose down
-  PORT=$PORT docker-compose up -d --build
-else
-  docker stop $REPO || true
-  docker rm $REPO || true
-  docker build -t $REPO .
-  docker run -d --name $REPO -p 127.0.0.1:$PORT:80 $REPO
-fi
+# Builda e sobe container
+echo "🐳 Subindo container Docker..."
+docker stop "$REPO_NAME" 2>/dev/null || true
+docker rm "$REPO_NAME" 2>/dev/null || true
+docker build -t "$REPO_NAME" .
+docker run -d --name "$REPO_NAME" -p 127.0.0.1:$PORT:$APP_PORT "$REPO_NAME"
 
-# Gera nginx config
-cat <<EOF > $NGINX_CONF
+# Gera config do nginx
+echo "📝 Gerando config do NGINX para $DOMAIN..."
+
+cat <<EOF > "$NGINX_SITES/$DOMAIN"
 server {
     listen 80;
     server_name $DOMAIN;
@@ -45,7 +48,10 @@ server {
 }
 EOF
 
-ln -sf $NGINX_CONF $NGINX_LINK
+ln -sf "$NGINX_SITES/$DOMAIN" "$NGINX_ENABLED/$DOMAIN"
+
+# Reload no nginx
+echo "🔁 Reload do NGINX..."
 nginx -t && systemctl reload nginx
 
-echo "✅ $REPO disponível em http://$DOMAIN"
+echo "✅ $REPO_NAME disponível em http://$DOMAIN"
