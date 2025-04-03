@@ -34,7 +34,7 @@ docker rm "$REPO_NAME" 2>/dev/null || true
 
 # Build e run com a porta correta do app
 docker build -t "$REPO_NAME" .
-docker run -d --name "$REPO_NAME" -p 127.0.0.1:$PORT:$APP_PORT "$REPO_NAME"
+docker run -d --name "$REPO_NAME" --network=host "$REPO_NAME"
 
 # Gera config NGINX
 echo "📝 Gerando config do NGINX para $DOMAIN..."
