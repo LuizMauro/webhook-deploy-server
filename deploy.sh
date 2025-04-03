@@ -3,7 +3,6 @@
 REPO_NAME=$1
 CLONE_URL=$2
 PROJECTS_DIR="/home/ubuntu/projetos"
-APP_PORT=3000 # Porta que o app Express usa internamente
 DOMAIN="$REPO_NAME.luizmauro.com"
 NGINX_SITES="/etc/nginx/sites-available"
 NGINX_ENABLED="/etc/nginx/sites-enabled"
@@ -32,9 +31,9 @@ echo "🐳 Subindo container Docker..."
 docker stop "$REPO_NAME" 2>/dev/null || true
 docker rm "$REPO_NAME" 2>/dev/null || true
 
-# Build e run com a porta correta do app
+# Build e run com a porta correta
 docker build -t "$REPO_NAME" .
-docker run -d --name "$REPO_NAME" --network=host "$REPO_NAME"
+docker run -d --name "$REPO_NAME" -p 127.0.0.1:$PORT:80 "$REPO_NAME"
 
 # Gera config NGINX
 echo "📝 Gerando config do NGINX para $DOMAIN..."
@@ -45,7 +44,7 @@ server {
     server_name $DOMAIN;
 
     location / {
-        proxy_pass http://127.0.0.1:$APP_PORT;
+        proxy_pass http://127.0.0.1:$PORT;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
